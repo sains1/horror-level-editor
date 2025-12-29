@@ -1,4 +1,4 @@
-import type { DecorationVariant, ElementType, Tool } from '../types/editor';
+import type { DecorationVariant, ElementType, Tool, CharacterVariant, ItemVariant } from '../types/editor';
 
 export interface ElementDefinition {
   type: ElementType | DecorationVariant;
@@ -86,6 +86,32 @@ export const DECORATION_VARIANTS: { variant: DecorationVariant; label: string; i
   { variant: 'chair', label: 'Chair', icon: 'ArmchairIcon' },
   { variant: 'bed', label: 'Bed', icon: 'Bed' },
   { variant: 'car', label: 'Car', icon: 'Car' },
+];
+
+export const CHARACTER_VARIANTS: { variant: CharacterVariant; label: string; icon: string }[] = [
+  { variant: 'shadow-monster', label: 'Shadow Monster', icon: 'Ghost' },
+  { variant: 'player', label: 'Player', icon: 'User' },
+  { variant: 'elderly', label: 'Elderly', icon: 'PersonStanding' },
+  { variant: 'guard', label: 'Guard', icon: 'Shield' },
+  { variant: 'npc', label: 'NPC', icon: 'UserCircle' },
+];
+
+export const ITEM_VARIANTS: { variant: ItemVariant; label: string; icon: string }[] = [
+  { variant: 'key', label: 'Key', icon: 'Key' },
+  { variant: 'key-card', label: 'Key Card', icon: 'CreditCard' },
+  { variant: 'document', label: 'Document', icon: 'FileText' },
+  { variant: 'flashlight', label: 'Flashlight', icon: 'Flashlight' },
+  { variant: 'battery', label: 'Battery', icon: 'Battery' },
+  { variant: 'medkit', label: 'Medkit', icon: 'HeartPulse' },
+];
+
+export const ITEM_COLORS = [
+  { name: 'Gold', value: '#FFD700' },
+  { name: 'Red', value: '#ff4444' },
+  { name: 'Blue', value: '#4488ff' },
+  { name: 'Green', value: '#44ff44' },
+  { name: 'Purple', value: '#aa44ff' },
+  { name: 'Silver', value: '#C0C0C0' },
 ];
 
 export const ROOM_COLORS = [

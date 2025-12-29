@@ -23,7 +23,7 @@ export function RoomRenderer({
   snapToGrid = true,
   gridSize = 20
 }: RoomRendererProps) {
-  const { x, y, points, name, fillColor, wallThickness, rotation } = element;
+  const { x, y, points, name, fillColor, wallThickness, rotation, lightLevel = 100 } = element;
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
 
   // Convert points to flat array for Konva Line
@@ -121,6 +121,16 @@ export function RoomRenderer({
         closed
         listening={true}
       />
+      {/* Darkness overlay based on light level */}
+      {lightLevel < 100 && (
+        <Line
+          points={flatPoints}
+          fill="#000000"
+          opacity={(100 - lightLevel) / 100 * 0.7}
+          closed
+          listening={false}
+        />
+      )}
       {/* Room walls */}
       <Line
         points={flatPoints}

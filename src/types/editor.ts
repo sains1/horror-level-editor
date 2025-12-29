@@ -5,11 +5,18 @@ export type ElementType =
   | 'stairs'
   | 'hiding-spot'
   | 'patrol-route'
-  | 'decoration';
+  | 'decoration'
+  | 'character'
+  | 'jumpscare'
+  | 'item';
 
 export type DecorationVariant = 'tree' | 'bush' | 'table' | 'chair' | 'bed' | 'car';
 
-export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'decoration' | 'pan';
+export type CharacterVariant = 'shadow-monster' | 'player' | 'elderly' | 'guard' | 'npc';
+
+export type ItemVariant = 'key' | 'key-card' | 'document' | 'flashlight' | 'battery' | 'medkit';
+
+export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'decoration' | 'character' | 'jumpscare' | 'item' | 'pan';
 
 export interface Point {
   x: number;
@@ -30,6 +37,7 @@ export interface RoomElement extends BaseElement {
   name: string;
   fillColor: string;
   wallThickness: number;
+  lightLevel: number; // 0-100, 0 = dark, 100 = bright
 }
 
 export interface DoorElement extends BaseElement {
@@ -68,6 +76,28 @@ export interface DecorationElement extends BaseElement {
   scale: number;
 }
 
+export interface CharacterElement extends BaseElement {
+  type: 'character';
+  variant: CharacterVariant;
+  name: string;
+  scale: number;
+}
+
+export interface JumpscareElement extends BaseElement {
+  type: 'jumpscare';
+  name: string;
+  radius: number;
+  triggerOnce: boolean;
+}
+
+export interface ItemElement extends BaseElement {
+  type: 'item';
+  variant: ItemVariant;
+  name: string;
+  scale: number;
+  color: string; // For color-coded keys
+}
+
 export type Element =
   | RoomElement
   | DoorElement
@@ -75,7 +105,10 @@ export type Element =
   | StairsElement
   | HidingSpotElement
   | PatrolRouteElement
-  | DecorationElement;
+  | DecorationElement
+  | CharacterElement
+  | JumpscareElement
+  | ItemElement;
 
 export interface Level {
   id: string;

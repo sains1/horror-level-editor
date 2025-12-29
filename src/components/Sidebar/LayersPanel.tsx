@@ -10,6 +10,9 @@ const LAYER_LABELS: Record<ElementType, string> = {
   'hiding-spot': 'Hiding Spots',
   'patrol-route': 'Patrol Routes',
   'decoration': 'Decorations',
+  'character': 'Characters',
+  'jumpscare': 'Jump Scares',
+  'item': 'Items',
 };
 
 export function LayersPanel() {

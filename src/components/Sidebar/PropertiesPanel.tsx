@@ -1,5 +1,5 @@
 import { useEditorStore } from '../../store/editorStore';
-import { ROOM_COLORS, LOCK_COLORS, DECORATION_VARIANTS } from '../../constants/elements';
+import { ROOM_COLORS, LOCK_COLORS, DECORATION_VARIANTS, CHARACTER_VARIANTS, ITEM_VARIANTS, ITEM_COLORS } from '../../constants/elements';
 import type {
   Element,
   RoomElement,
@@ -8,7 +8,10 @@ import type {
   StairsElement,
   HidingSpotElement,
   PatrolRouteElement,
-  DecorationElement
+  DecorationElement,
+  CharacterElement,
+  JumpscareElement,
+  ItemElement
 } from '../../types/editor';
 import {
   Square,
@@ -18,6 +21,9 @@ import {
   Eye,
   Route,
   TreeDeciduous,
+  Ghost,
+  Zap,
+  Key,
 } from 'lucide-react';
 
 // Icon mapping for element types
@@ -29,6 +35,9 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; className?
   'hiding-spot': Eye,
   'patrol-route': Route,
   'decoration': TreeDeciduous,
+  'character': Ghost,
+  'jumpscare': Zap,
+  'item': Key,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -39,6 +48,9 @@ const TYPE_LABELS: Record<string, string> = {
   'hiding-spot': 'Hiding Spot',
   'patrol-route': 'Patrol Route',
   'decoration': 'Decoration',
+  'character': 'Character',
+  'jumpscare': 'Jump Scare',
+  'item': 'Item',
 };
 
 interface NumberFieldProps {
@@ -163,6 +175,34 @@ function CheckboxField({ label, checked, onChange }: CheckboxFieldProps) {
   );
 }
 
+interface SliderFieldProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+function SliderField({ label, value, onChange, min = 0, max = 100, step = 1 }: SliderFieldProps) {
+  return (
+    <div className="mb-3">
+      <label className="text-xs font-medium text-gray-400 block mb-1">
+        {label}: {value}%
+      </label>
+      <input
+        type="range"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        min={min}
+        max={max}
+        step={step}
+        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+      />
+    </div>
+  );
+}
+
 // Property editors for each element type
 function RoomProperties({ element, onUpdate }: { element: RoomElement; onUpdate: (updates: Partial<RoomElement>) => void }) {
   return (
@@ -177,6 +217,14 @@ function RoomProperties({ element, onUpdate }: { element: RoomElement; onUpdate:
         value={element.fillColor || '#f5e6d3'}
         onChange={(fillColor) => onUpdate({ fillColor })}
         colors={ROOM_COLORS}
+      />
+      <SliderField
+        label="Light Level"
+        value={element.lightLevel ?? 100}
+        onChange={(lightLevel) => onUpdate({ lightLevel })}
+        min={0}
+        max={100}
+        step={5}
       />
       <NumberField
         label="Rotation"
@@ -342,6 +390,107 @@ function DecorationProperties({ element, onUpdate }: { element: DecorationElemen
   );
 }
 
+function CharacterProperties({ element, onUpdate }: { element: CharacterElement; onUpdate: (updates: Partial<CharacterElement>) => void }) {
+  return (
+    <>
+      <TextField
+        label="Name"
+        value={element.name || ''}
+        onChange={(name) => onUpdate({ name })}
+      />
+      <SelectField
+        label="Type"
+        value={element.variant || 'npc'}
+        onChange={(variant) => onUpdate({ variant: variant as CharacterElement['variant'] })}
+        options={CHARACTER_VARIANTS.map((v) => ({ value: v.variant, label: v.label }))}
+      />
+      <NumberField
+        label="Scale"
+        value={element.scale || 1}
+        onChange={(scale) => onUpdate({ scale })}
+        min={0.5}
+        max={3}
+        step={0.1}
+      />
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
+function JumpscareProperties({ element, onUpdate }: { element: JumpscareElement; onUpdate: (updates: Partial<JumpscareElement>) => void }) {
+  return (
+    <>
+      <TextField
+        label="Name"
+        value={element.name || ''}
+        onChange={(name) => onUpdate({ name })}
+      />
+      <NumberField
+        label="Trigger Radius"
+        value={element.radius || 40}
+        onChange={(radius) => onUpdate({ radius })}
+        min={20}
+        max={200}
+        step={10}
+      />
+      <CheckboxField
+        label="Trigger once only"
+        checked={element.triggerOnce !== false}
+        onChange={(triggerOnce) => onUpdate({ triggerOnce })}
+      />
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
+function ItemProperties({ element, onUpdate }: { element: ItemElement; onUpdate: (updates: Partial<ItemElement>) => void }) {
+  return (
+    <>
+      <TextField
+        label="Name"
+        value={element.name || ''}
+        onChange={(name) => onUpdate({ name })}
+      />
+      <SelectField
+        label="Type"
+        value={element.variant || 'key'}
+        onChange={(variant) => onUpdate({ variant: variant as ItemElement['variant'] })}
+        options={ITEM_VARIANTS.map((v) => ({ value: v.variant, label: v.label }))}
+      />
+      <ColorPicker
+        label="Color"
+        value={element.color || '#FFD700'}
+        onChange={(color) => onUpdate({ color })}
+        colors={ITEM_COLORS}
+      />
+      <NumberField
+        label="Scale"
+        value={element.scale || 1}
+        onChange={(scale) => onUpdate({ scale })}
+        min={0.5}
+        max={3}
+        step={0.1}
+      />
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
 function ElementProperties({ element }: { element: Element }) {
   const { updateElement } = useEditorStore();
 
@@ -364,6 +513,12 @@ function ElementProperties({ element }: { element: Element }) {
       return <PatrolRouteProperties element={element as PatrolRouteElement} onUpdate={handleUpdate} />;
     case 'decoration':
       return <DecorationProperties element={element as DecorationElement} onUpdate={handleUpdate} />;
+    case 'character':
+      return <CharacterProperties element={element as CharacterElement} onUpdate={handleUpdate} />;
+    case 'jumpscare':
+      return <JumpscareProperties element={element as JumpscareElement} onUpdate={handleUpdate} />;
+    case 'item':
+      return <ItemProperties element={element as ItemElement} onUpdate={handleUpdate} />;
     default:
       return null;
   }

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { v4 as uuidv4 } from 'uuid';
 import { useEditorStore } from '../../store/editorStore';
@@ -9,11 +9,28 @@ import { StairsRenderer } from './StairsRenderer';
 import { HidingSpotRenderer } from './HidingSpotRenderer';
 import { PatrolRouteRenderer } from './PatrolRouteRenderer';
 import { DecorationRenderer } from './DecorationRenderer';
+import { CharacterRenderer } from './CharacterRenderer';
+import { JumpscareRenderer } from './JumpscareRenderer';
+import { ItemRenderer } from './ItemRenderer';
 import { DrawingPreview } from './DrawingPreview';
 import { RectanglePreview } from './RectanglePreview';
-import type { Point, Element, RoomElement, PatrolRouteElement } from '../../types/editor';
+import type { Point, Element, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, ElementType } from '../../types/editor';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getWallSegments, snapDoorToWall } from '../../utils/snapUtils';
+
+// Z-order for rendering elements (lower = rendered first/bottom)
+const ELEMENT_Z_ORDER: Record<ElementType, number> = {
+  'room': 0,           // Rooms at the bottom
+  'decoration': 10,    // Decorations above rooms
+  'patrol-route': 20,  // Routes above decorations
+  'door': 30,          // Doors above routes
+  'locked-door': 30,   // Same level as doors
+  'stairs': 40,        // Stairs above doors
+  'hiding-spot': 50,   // Hiding spots above stairs
+  'item': 60,          // Items above hiding spots
+  'jumpscare': 70,     // Jump scares above items
+  'character': 80,     // Characters on top
+};
 
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,9 +58,20 @@ export function EditorCanvas() {
     addElement,
     updateElement,
     deleteElements,
+    selectedDecorationVariant,
+    selectedCharacterVariant,
+    selectedItemVariant,
   } = useEditorStore();
 
   const level = getCurrentLevel();
+
+  // Sort elements by z-order for proper rendering layering
+  const sortedElements = useMemo(() => {
+    if (!level?.elements) return [];
+    return [...level.elements].sort(
+      (a, b) => (ELEMENT_Z_ORDER[a.type] ?? 0) - (ELEMENT_Z_ORDER[b.type] ?? 0)
+    );
+  }, [level?.elements]);
 
   // Handle container resize
   useEffect(() => {
@@ -113,8 +141,10 @@ export function EditorCanvas() {
 
   // Handle stage click
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    // Only handle clicks on the stage background
-    if (e.target !== e.target.getStage()) return;
+    // For select and pan tools, only handle clicks on the stage background
+    // For placement tools, allow clicking anywhere to place elements
+    const isPlacementTool = activeTool !== 'select' && activeTool !== 'pan';
+    if (!isPlacementTool && e.target !== e.target.getStage()) return;
 
     const pos = snapToGridPos(getMousePos(e));
 
@@ -196,12 +226,52 @@ export function EditorCanvas() {
           x: pos.x,
           y: pos.y,
           rotation: 0,
-          variant: 'tree',
+          variant: selectedDecorationVariant,
           scale: 1,
         });
         break;
+
+      case 'character':
+        addElement({
+          id: uuidv4(),
+          type: 'character',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          variant: selectedCharacterVariant,
+          name: '',
+          scale: 1,
+        });
+        break;
+
+      case 'jumpscare':
+        addElement({
+          id: uuidv4(),
+          type: 'jumpscare',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          name: '',
+          radius: 40,
+          triggerOnce: true,
+        });
+        break;
+
+      case 'item':
+        addElement({
+          id: uuidv4(),
+          type: 'item',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          variant: selectedItemVariant,
+          name: '',
+          scale: 1,
+          color: '#FFD700',
+        });
+        break;
     }
-  }, [activeTool, snapToGridPos, getMousePos, clearSelection, addElement]);
+  }, [activeTool, snapToGridPos, getMousePos, clearSelection, addElement, selectedDecorationVariant, selectedCharacterVariant, selectedItemVariant]);
 
   // Handle double-click to finish drawing
   const handleDblClick = useCallback(() => {
@@ -217,6 +287,7 @@ export function EditorCanvas() {
         name: 'Room',
         fillColor: '#f5e6d3',
         wallThickness: 4,
+        lightLevel: 100,
       });
       setDrawingPoints([]);
       setMousePosition(null);
@@ -239,7 +310,13 @@ export function EditorCanvas() {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Backspace: undo last point while drawing, or delete selected
+      // Don't handle keyboard shortcuts when typing in an input field
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement instanceof HTMLInputElement ||
+                            activeElement instanceof HTMLTextAreaElement ||
+                            activeElement instanceof HTMLSelectElement;
+
+      // Backspace: undo last point while drawing, or delete selected (but not when typing)
       if (e.key === 'Backspace') {
         if (drawingPoints.length > 0) {
           e.preventDefault();
@@ -247,14 +324,15 @@ export function EditorCanvas() {
           if (drawingPoints.length <= 1) {
             setMousePosition(null);
           }
-        } else if (selectedElementIds.length > 0) {
+        } else if (selectedElementIds.length > 0 && !isInputFocused) {
+          e.preventDefault();
           deleteElements(selectedElementIds);
         }
         return;
       }
 
-      // Delete selected elements
-      if (e.key === 'Delete' && selectedElementIds.length > 0) {
+      // Delete selected elements (but not when typing in an input)
+      if (e.key === 'Delete' && selectedElementIds.length > 0 && !isInputFocused) {
         deleteElements(selectedElementIds);
       }
 
@@ -363,6 +441,7 @@ export function EditorCanvas() {
           name: 'Room',
           fillColor: '#f5e6d3',
           wallThickness: 4,
+          lightLevel: 100,
         });
       }
 
@@ -461,6 +540,36 @@ export function EditorCanvas() {
             onDragEnd={onDragEnd}
           />
         );
+      case 'character':
+        return (
+          <CharacterRenderer
+            key={element.id}
+            element={element as CharacterElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragEnd={onDragEnd}
+          />
+        );
+      case 'jumpscare':
+        return (
+          <JumpscareRenderer
+            key={element.id}
+            element={element as JumpscareElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragEnd={onDragEnd}
+          />
+        );
+      case 'item':
+        return (
+          <ItemRenderer
+            key={element.id}
+            element={element as ItemElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragEnd={onDragEnd}
+          />
+        );
       default:
         return null;
     }
@@ -501,7 +610,7 @@ export function EditorCanvas() {
 
         {/* Elements layer */}
         <Layer>
-          {level?.elements.map(renderElement)}
+          {sortedElements.map(renderElement)}
 
           {/* Polygon/patrol drawing preview */}
           {(activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0 && (

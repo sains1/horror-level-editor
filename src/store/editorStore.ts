@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Element, ElementType, Level, Point, Tool } from '../types/editor';
+import type { Element, ElementType, Level, Point, Tool, DecorationVariant, CharacterVariant, ItemVariant } from '../types/editor';
 
 interface EditorStore {
   // State
@@ -13,6 +13,11 @@ interface EditorStore {
   gridSize: number;
   snapToGrid: boolean;
   visibleLayers: Record<ElementType, boolean>;
+
+  // Selected variants for placement
+  selectedDecorationVariant: DecorationVariant;
+  selectedCharacterVariant: CharacterVariant;
+  selectedItemVariant: ItemVariant;
 
   // Clipboard for copy/paste
   clipboard: Element[];
@@ -32,6 +37,9 @@ interface EditorStore {
   setGridSize: (size: number) => void;
   setSnapToGrid: (snap: boolean) => void;
   toggleLayerVisibility: (layer: ElementType) => void;
+  setSelectedDecorationVariant: (variant: DecorationVariant) => void;
+  setSelectedCharacterVariant: (variant: CharacterVariant) => void;
+  setSelectedItemVariant: (variant: ItemVariant) => void;
 
   // Element actions
   addElement: (element: Element) => void;
@@ -70,6 +78,9 @@ const DEFAULT_VISIBLE_LAYERS: Record<ElementType, boolean> = {
   'hiding-spot': true,
   'patrol-route': true,
   'decoration': true,
+  'character': true,
+  'jumpscare': true,
+  'item': true,
 };
 
 const createDefaultLevel = (): Level => ({
@@ -92,6 +103,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   gridSize: 20,
   snapToGrid: true,
   visibleLayers: { ...DEFAULT_VISIBLE_LAYERS },
+  selectedDecorationVariant: 'tree',
+  selectedCharacterVariant: 'shadow-monster',
+  selectedItemVariant: 'key',
   clipboard: [],
   history: [],
   historyIndex: -1,
@@ -125,6 +139,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       [layer]: !state.visibleLayers[layer],
     },
   })),
+
+  setSelectedDecorationVariant: (variant) => set({ selectedDecorationVariant: variant }),
+  setSelectedCharacterVariant: (variant) => set({ selectedCharacterVariant: variant }),
+  setSelectedItemVariant: (variant) => set({ selectedItemVariant: variant }),
 
   // Element actions
   addElement: (element) => {
