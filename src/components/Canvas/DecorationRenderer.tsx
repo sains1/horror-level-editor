@@ -5,10 +5,12 @@ interface DecorationRendererProps {
   element: DecorationElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function DecorationRenderer({ element, isSelected, onSelect, onDragEnd }: DecorationRendererProps) {
+export function DecorationRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: DecorationRendererProps) {
   const { x, y, variant, scale, rotation } = element;
 
   const renderDecoration = () => {
@@ -142,9 +144,10 @@ export function DecorationRenderer({ element, isSelected, onSelect, onDragEnd }:
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {renderDecoration()}

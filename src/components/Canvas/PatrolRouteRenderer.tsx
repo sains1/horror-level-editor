@@ -6,10 +6,12 @@ interface PatrolRouteRendererProps {
   element: PatrolRouteElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function PatrolRouteRenderer({ element, isSelected, onSelect, onDragEnd }: PatrolRouteRendererProps) {
+export function PatrolRouteRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: PatrolRouteRendererProps) {
   const { x, y, points, color, loop } = element;
 
   if (points.length < 2) return null;
@@ -45,9 +47,10 @@ export function PatrolRouteRenderer({ element, isSelected, onSelect, onDragEnd }
     <Group
       x={x}
       y={y}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Main path line */}

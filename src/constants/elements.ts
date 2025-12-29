@@ -1,4 +1,4 @@
-import type { DecorationVariant, ElementType, Tool, CharacterVariant, ItemVariant } from '../types/editor';
+import type { DecorationVariant, ElementType, Tool, CharacterVariant, ItemVariant, SpawnVariant, ObjectiveType } from '../types/editor';
 
 export interface ElementDefinition {
   type: ElementType | DecorationVariant;
@@ -18,7 +18,7 @@ export const ELEMENT_DEFINITIONS: ElementDefinition[] = [
     icon: 'Square',
     category: 'structure',
     defaultProps: {
-      fillColor: '#f5e6d3',
+      fillColor: '#64748b',
       wallThickness: 4,
       name: 'Room',
     },
@@ -90,6 +90,10 @@ export const DECORATION_VARIANTS: { variant: DecorationVariant; label: string; i
 
 export const CHARACTER_VARIANTS: { variant: CharacterVariant; label: string; icon: string }[] = [
   { variant: 'shadow-monster', label: 'Shadow Monster', icon: 'Ghost' },
+  { variant: 'ghost', label: 'Ghost', icon: 'Ghost' },
+  { variant: 'slime', label: 'Slime', icon: 'Droplet' },
+  { variant: 'skeleton', label: 'Skeleton', icon: 'Bone' },
+  { variant: 'zombie', label: 'Zombie', icon: 'Skull' },
   { variant: 'player', label: 'Player', icon: 'User' },
   { variant: 'elderly', label: 'Elderly', icon: 'PersonStanding' },
   { variant: 'guard', label: 'Guard', icon: 'Shield' },
@@ -115,14 +119,14 @@ export const ITEM_COLORS = [
 ];
 
 export const ROOM_COLORS = [
-  { name: 'Beige', value: '#f5e6d3' },
-  { name: 'Light Gray', value: '#e8e8e8' },
-  { name: 'Light Blue', value: '#d4e5f7' },
-  { name: 'Light Green', value: '#d4f7d4' },
-  { name: 'Light Yellow', value: '#f7f4d4' },
-  { name: 'Light Pink', value: '#f7d4e5' },
-  { name: 'Tan', value: '#d4b896' },
-  { name: 'White', value: '#ffffff' },
+  { name: 'Slate', value: '#64748b' },
+  { name: 'Steel', value: '#6b7280' },
+  { name: 'Ocean', value: '#3b82a0' },
+  { name: 'Sage', value: '#5a8a6e' },
+  { name: 'Terracotta', value: '#b87350' },
+  { name: 'Rose', value: '#a86070' },
+  { name: 'Violet', value: '#7c6892' },
+  { name: 'Sand', value: '#a89078' },
 ];
 
 export const LOCK_COLORS = [
@@ -131,4 +135,25 @@ export const LOCK_COLORS = [
   { name: 'Green', value: '#44ff44' },
   { name: 'Yellow', value: '#ffff44' },
   { name: 'Purple', value: '#ff44ff' },
+];
+
+export const SPAWN_VARIANTS: { variant: SpawnVariant; label: string; icon: string }[] = [
+  { variant: 'player-start', label: 'Player Start', icon: 'Play' },
+  { variant: 'enemy-spawn', label: 'Enemy Spawn', icon: 'Skull' },
+  { variant: 'npc-spawn', label: 'NPC Spawn', icon: 'UserCircle' },
+];
+
+export const OBJECTIVE_TYPES: { type: ObjectiveType; label: string; color: string }[] = [
+  { type: 'primary', label: 'Primary', color: '#FFD700' },
+  { type: 'secondary', label: 'Secondary', color: '#C0C0C0' },
+  { type: 'optional', label: 'Optional', color: '#CD7F32' },
+];
+
+export const ANNOTATION_COLORS = [
+  { name: 'Yellow', value: '#FFEB3B' },
+  { name: 'Blue', value: '#2196F3' },
+  { name: 'Green', value: '#4CAF50' },
+  { name: 'Red', value: '#F44336' },
+  { name: 'Orange', value: '#FF9800' },
+  { name: 'Purple', value: '#9C27B0' },
 ];

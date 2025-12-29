@@ -5,10 +5,12 @@ interface ItemRendererProps {
   element: ItemElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function ItemRenderer({ element, isSelected, onSelect, onDragEnd }: ItemRendererProps) {
+export function ItemRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: ItemRendererProps) {
   const { x, y, variant, name, scale, color, rotation } = element;
 
   const renderItem = () => {
@@ -202,9 +204,10 @@ export function ItemRenderer({ element, isSelected, onSelect, onDragEnd }: ItemR
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Glow effect for pickups */}

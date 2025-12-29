@@ -24,10 +24,16 @@ import {
   Flashlight,
   Battery,
   HeartPulse,
+  StickyNote,
+  Play,
+  Skull,
+  Flag,
+  Droplet,
+  Bone,
 } from 'lucide-react';
 import { useEditorStore } from '../../store/editorStore';
-import type { Tool, DecorationVariant, CharacterVariant, ItemVariant } from '../../types/editor';
-import { DECORATION_VARIANTS, CHARACTER_VARIANTS, ITEM_VARIANTS } from '../../constants/elements';
+import type { Tool, DecorationVariant, CharacterVariant, ItemVariant, SpawnVariant } from '../../types/editor';
+import { DECORATION_VARIANTS, CHARACTER_VARIANTS, ITEM_VARIANTS, SPAWN_VARIANTS } from '../../constants/elements';
 
 // Icon mapping for decoration variants
 const DECORATION_ICONS: Record<DecorationVariant, React.ComponentType<{ size?: number }>> = {
@@ -42,6 +48,10 @@ const DECORATION_ICONS: Record<DecorationVariant, React.ComponentType<{ size?: n
 // Icon mapping for character variants
 const CHARACTER_ICONS: Record<CharacterVariant, React.ComponentType<{ size?: number }>> = {
   'shadow-monster': Ghost,
+  'ghost': Ghost,
+  'slime': Droplet,
+  'skeleton': Bone,
+  'zombie': Skull,
   'player': User,
   'elderly': PersonStanding,
   'guard': Shield,
@@ -56,6 +66,13 @@ const ITEM_ICONS: Record<ItemVariant, React.ComponentType<{ size?: number }>> = 
   'flashlight': Flashlight,
   'battery': Battery,
   'medkit': HeartPulse,
+};
+
+// Icon mapping for spawn variants
+const SPAWN_ICONS: Record<SpawnVariant, React.ComponentType<{ size?: number }>> = {
+  'player-start': Play,
+  'enemy-spawn': Skull,
+  'npc-spawn': UserCircle,
 };
 
 interface ToolButtonProps {
@@ -136,9 +153,11 @@ export function ElementPalette() {
     selectedDecorationVariant,
     selectedCharacterVariant,
     selectedItemVariant,
+    selectedSpawnVariant,
     setSelectedDecorationVariant,
     setSelectedCharacterVariant,
     setSelectedItemVariant,
+    setSelectedSpawnVariant,
   } = useEditorStore();
 
   return (
@@ -255,6 +274,43 @@ export function ElementPalette() {
               onSelectVariant={setSelectedDecorationVariant}
             />
           ))}
+        </div>
+      </div>
+
+      <div className="p-3 border-b border-gray-700">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+          Spawns
+        </h2>
+        <div className="flex flex-col gap-1">
+          {SPAWN_VARIANTS.map((spawn) => (
+            <VariantButton
+              key={spawn.variant}
+              tool="spawn"
+              variant={spawn.variant}
+              label={spawn.label}
+              icon={SPAWN_ICONS[spawn.variant]}
+              selectedVariant={selectedSpawnVariant}
+              onSelectVariant={setSelectedSpawnVariant}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="p-3 border-b border-gray-700">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+          Objectives
+        </h2>
+        <div className="flex flex-col gap-1">
+          <ToolButton tool="objective" label="Objective Marker" icon={Flag} />
+        </div>
+      </div>
+
+      <div className="p-3 border-b border-gray-700">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+          Notes
+        </h2>
+        <div className="flex flex-col gap-1">
+          <ToolButton tool="annotation" label="Annotation" icon={StickyNote} />
         </div>
       </div>
 

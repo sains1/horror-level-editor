@@ -8,15 +8,22 @@ export type ElementType =
   | 'decoration'
   | 'character'
   | 'jumpscare'
-  | 'item';
+  | 'item'
+  | 'spawn'
+  | 'objective'
+  | 'annotation';
 
 export type DecorationVariant = 'tree' | 'bush' | 'table' | 'chair' | 'bed' | 'car';
 
-export type CharacterVariant = 'shadow-monster' | 'player' | 'elderly' | 'guard' | 'npc';
+export type CharacterVariant = 'shadow-monster' | 'ghost' | 'slime' | 'skeleton' | 'zombie' | 'player' | 'elderly' | 'guard' | 'npc';
 
 export type ItemVariant = 'key' | 'key-card' | 'document' | 'flashlight' | 'battery' | 'medkit';
 
-export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'decoration' | 'character' | 'jumpscare' | 'item' | 'pan';
+export type SpawnVariant = 'player-start' | 'enemy-spawn' | 'npc-spawn';
+
+export type ObjectiveType = 'primary' | 'secondary' | 'optional';
+
+export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'decoration' | 'character' | 'jumpscare' | 'item' | 'spawn' | 'objective' | 'annotation' | 'pan';
 
 export interface Point {
   x: number;
@@ -98,6 +105,32 @@ export interface ItemElement extends BaseElement {
   color: string; // For color-coded keys
 }
 
+export interface SpawnElement extends BaseElement {
+  type: 'spawn';
+  variant: SpawnVariant;
+  name: string;
+  direction: number; // 0-360, which way entity faces
+  respawn: 'once' | 'timed' | 'triggered';
+}
+
+export interface ObjectiveElement extends BaseElement {
+  type: 'objective';
+  name: string;
+  description: string;
+  objectiveType: ObjectiveType;
+  order: number; // Sequence number 1, 2, 3...
+  radius: number; // Completion zone size
+  requiredItem: string | null; // e.g., "Red Key" or null
+}
+
+export interface AnnotationElement extends BaseElement {
+  type: 'annotation';
+  text: string;
+  fontSize: 'small' | 'medium' | 'large'; // 12, 16, 20px
+  color: string;
+  backgroundColor: string | null; // null = transparent
+}
+
 export type Element =
   | RoomElement
   | DoorElement
@@ -108,7 +141,10 @@ export type Element =
   | DecorationElement
   | CharacterElement
   | JumpscareElement
-  | ItemElement;
+  | ItemElement
+  | SpawnElement
+  | ObjectiveElement
+  | AnnotationElement;
 
 export interface Level {
   id: string;

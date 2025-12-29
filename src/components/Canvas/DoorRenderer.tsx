@@ -7,18 +7,22 @@ interface DoorRendererProps {
   element: DoorElement | LockedDoorElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number, rotation?: number) => void;
   walls?: WallSegment[];
   snapThreshold?: number;
+  draggable?: boolean;
 }
 
 export function DoorRenderer({
   element,
   isSelected,
   onSelect,
+  onDragStart,
   onDragEnd,
   walls = [],
-  snapThreshold = 30
+  snapThreshold = 30,
+  draggable = true
 }: DoorRendererProps) {
   const { x, y, width, rotation } = element;
   const isLocked = element.type === 'locked-door';
@@ -29,9 +33,10 @@ export function DoorRenderer({
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => {
         const pos = { x: e.target.x(), y: e.target.y() };
         if (walls.length > 0) {

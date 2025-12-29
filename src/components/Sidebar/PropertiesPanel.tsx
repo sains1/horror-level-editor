@@ -1,5 +1,5 @@
 import { useEditorStore } from '../../store/editorStore';
-import { ROOM_COLORS, LOCK_COLORS, DECORATION_VARIANTS, CHARACTER_VARIANTS, ITEM_VARIANTS, ITEM_COLORS } from '../../constants/elements';
+import { ROOM_COLORS, LOCK_COLORS, DECORATION_VARIANTS, CHARACTER_VARIANTS, ITEM_VARIANTS, ITEM_COLORS, ANNOTATION_COLORS, SPAWN_VARIANTS, OBJECTIVE_TYPES } from '../../constants/elements';
 import type {
   Element,
   RoomElement,
@@ -11,7 +11,10 @@ import type {
   DecorationElement,
   CharacterElement,
   JumpscareElement,
-  ItemElement
+  ItemElement,
+  AnnotationElement,
+  SpawnElement,
+  ObjectiveElement
 } from '../../types/editor';
 import {
   Square,
@@ -24,6 +27,9 @@ import {
   Ghost,
   Zap,
   Key,
+  StickyNote,
+  Play,
+  Flag,
 } from 'lucide-react';
 
 // Icon mapping for element types
@@ -38,6 +44,9 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ size?: number; className?
   'character': Ghost,
   'jumpscare': Zap,
   'item': Key,
+  'annotation': StickyNote,
+  'spawn': Play,
+  'objective': Flag,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -51,6 +60,9 @@ const TYPE_LABELS: Record<string, string> = {
   'character': 'Character',
   'jumpscare': 'Jump Scare',
   'item': 'Item',
+  'annotation': 'Annotation',
+  'spawn': 'Spawn Point',
+  'objective': 'Objective',
 };
 
 interface NumberFieldProps {
@@ -491,6 +503,175 @@ function ItemProperties({ element, onUpdate }: { element: ItemElement; onUpdate:
   );
 }
 
+function AnnotationProperties({ element, onUpdate }: { element: AnnotationElement; onUpdate: (updates: Partial<AnnotationElement>) => void }) {
+  // Create colors array with "None" option for background
+  const backgroundColors = [
+    { name: 'None', value: '' },
+    ...ANNOTATION_COLORS,
+  ];
+
+  return (
+    <>
+      <TextField
+        label="Text"
+        value={element.text || 'Note'}
+        onChange={(text) => onUpdate({ text })}
+      />
+      <SelectField
+        label="Font Size"
+        value={element.fontSize || 'medium'}
+        onChange={(fontSize) => onUpdate({ fontSize: fontSize as 'small' | 'medium' | 'large' })}
+        options={[
+          { value: 'small', label: 'Small (12px)' },
+          { value: 'medium', label: 'Medium (16px)' },
+          { value: 'large', label: 'Large (20px)' },
+        ]}
+      />
+      <ColorPicker
+        label="Text Color"
+        value={element.color || '#333333'}
+        onChange={(color) => onUpdate({ color })}
+        colors={[
+          { name: 'Black', value: '#333333' },
+          { name: 'White', value: '#ffffff' },
+          ...ANNOTATION_COLORS,
+        ]}
+      />
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-400 block mb-1">Background Color</label>
+        <div className="flex flex-wrap gap-1">
+          {backgroundColors.map((color) => (
+            <button
+              key={color.value || 'none'}
+              onClick={() => onUpdate({ backgroundColor: color.value || null })}
+              className={`w-6 h-6 rounded border-2 transition-all ${
+                (element.backgroundColor === color.value) || (!element.backgroundColor && !color.value)
+                  ? 'border-blue-500 scale-110'
+                  : 'border-gray-600 hover:border-gray-500'
+              }`}
+              style={{
+                backgroundColor: color.value || 'transparent',
+                backgroundImage: !color.value ? 'linear-gradient(45deg, #666 25%, transparent 25%), linear-gradient(-45deg, #666 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #666 75%), linear-gradient(-45deg, transparent 75%, #666 75%)' : undefined,
+                backgroundSize: !color.value ? '8px 8px' : undefined,
+                backgroundPosition: !color.value ? '0 0, 0 4px, 4px -4px, -4px 0px' : undefined,
+              }}
+              title={color.name}
+            />
+          ))}
+        </div>
+      </div>
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
+function SpawnProperties({ element, onUpdate }: { element: SpawnElement; onUpdate: (updates: Partial<SpawnElement>) => void }) {
+  return (
+    <>
+      <TextField
+        label="Name"
+        value={element.name || ''}
+        onChange={(name) => onUpdate({ name })}
+      />
+      <SelectField
+        label="Variant"
+        value={element.variant || 'player-start'}
+        onChange={(variant) => onUpdate({ variant: variant as SpawnElement['variant'] })}
+        options={SPAWN_VARIANTS.map((v) => ({ value: v.variant, label: v.label }))}
+      />
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-400 block mb-1">
+          Direction: {element.direction || 0} deg
+        </label>
+        <input
+          type="range"
+          value={element.direction || 0}
+          onChange={(e) => onUpdate({ direction: Number(e.target.value) })}
+          min={0}
+          max={360}
+          step={15}
+          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+        />
+      </div>
+      <SelectField
+        label="Respawn Type"
+        value={element.respawn || 'once'}
+        onChange={(respawn) => onUpdate({ respawn: respawn as 'once' | 'timed' | 'triggered' })}
+        options={[
+          { value: 'once', label: 'Once' },
+          { value: 'timed', label: 'Timed' },
+          { value: 'triggered', label: 'Triggered' },
+        ]}
+      />
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
+function ObjectiveProperties({ element, onUpdate }: { element: ObjectiveElement; onUpdate: (updates: Partial<ObjectiveElement>) => void }) {
+  return (
+    <>
+      <TextField
+        label="Name"
+        value={element.name || ''}
+        onChange={(name) => onUpdate({ name })}
+      />
+      <div className="mb-3">
+        <label className="text-xs font-medium text-gray-400 block mb-1">Description</label>
+        <textarea
+          value={element.description || ''}
+          onChange={(e) => onUpdate({ description: e.target.value })}
+          rows={2}
+          className="w-full bg-gray-700 text-gray-200 px-2 py-1.5 rounded text-sm border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
+        />
+      </div>
+      <SelectField
+        label="Objective Type"
+        value={element.objectiveType || 'primary'}
+        onChange={(objectiveType) => onUpdate({ objectiveType: objectiveType as 'primary' | 'secondary' | 'optional' })}
+        options={OBJECTIVE_TYPES.map((t) => ({ value: t.type, label: t.label }))}
+      />
+      <NumberField
+        label="Order (Sequence)"
+        value={element.order || 1}
+        onChange={(order) => onUpdate({ order })}
+        min={1}
+        max={99}
+        step={1}
+      />
+      <NumberField
+        label="Completion Radius"
+        value={element.radius || 40}
+        onChange={(radius) => onUpdate({ radius })}
+        min={20}
+        max={200}
+        step={10}
+      />
+      <TextField
+        label="Required Item (optional)"
+        value={element.requiredItem || ''}
+        onChange={(requiredItem) => onUpdate({ requiredItem: requiredItem || null })}
+      />
+      <NumberField
+        label="Rotation"
+        value={element.rotation || 0}
+        onChange={(rotation) => onUpdate({ rotation })}
+        step={15}
+      />
+    </>
+  );
+}
+
 function ElementProperties({ element }: { element: Element }) {
   const { updateElement } = useEditorStore();
 
@@ -519,6 +700,12 @@ function ElementProperties({ element }: { element: Element }) {
       return <JumpscareProperties element={element as JumpscareElement} onUpdate={handleUpdate} />;
     case 'item':
       return <ItemProperties element={element as ItemElement} onUpdate={handleUpdate} />;
+    case 'annotation':
+      return <AnnotationProperties element={element as AnnotationElement} onUpdate={handleUpdate} />;
+    case 'spawn':
+      return <SpawnProperties element={element as SpawnElement} onUpdate={handleUpdate} />;
+    case 'objective':
+      return <ObjectiveProperties element={element as ObjectiveElement} onUpdate={handleUpdate} />;
     default:
       return null;
   }

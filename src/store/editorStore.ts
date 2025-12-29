@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { Element, ElementType, Level, Point, Tool, DecorationVariant, CharacterVariant, ItemVariant } from '../types/editor';
+import type { Element, ElementType, Level, Point, Tool, DecorationVariant, CharacterVariant, ItemVariant, SpawnVariant } from '../types/editor';
 
 interface EditorStore {
   // State
@@ -14,10 +14,14 @@ interface EditorStore {
   snapToGrid: boolean;
   visibleLayers: Record<ElementType, boolean>;
 
+  // Stage reference for export functionality
+  stageRef: any | null;
+
   // Selected variants for placement
   selectedDecorationVariant: DecorationVariant;
   selectedCharacterVariant: CharacterVariant;
   selectedItemVariant: ItemVariant;
+  selectedSpawnVariant: SpawnVariant;
 
   // Clipboard for copy/paste
   clipboard: Element[];
@@ -40,10 +44,13 @@ interface EditorStore {
   setSelectedDecorationVariant: (variant: DecorationVariant) => void;
   setSelectedCharacterVariant: (variant: CharacterVariant) => void;
   setSelectedItemVariant: (variant: ItemVariant) => void;
+  setSelectedSpawnVariant: (variant: SpawnVariant) => void;
+  setStageRef: (ref: any) => void;
 
   // Element actions
   addElement: (element: Element) => void;
   updateElement: (id: string, updates: Partial<Element>) => void;
+  moveElements: (ids: string[], delta: Point) => void;
   deleteElements: (ids: string[]) => void;
   selectElements: (ids: string[]) => void;
   clearSelection: () => void;
@@ -81,6 +88,9 @@ const DEFAULT_VISIBLE_LAYERS: Record<ElementType, boolean> = {
   'character': true,
   'jumpscare': true,
   'item': true,
+  'spawn': true,
+  'objective': true,
+  'annotation': true,
 };
 
 const createDefaultLevel = (): Level => ({
@@ -100,12 +110,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   activeTool: 'select',
   zoom: 1,
   panOffset: { x: 0, y: 0 },
-  gridSize: 20,
+  gridSize: 50,
   snapToGrid: true,
   visibleLayers: { ...DEFAULT_VISIBLE_LAYERS },
+  stageRef: null,
   selectedDecorationVariant: 'tree',
   selectedCharacterVariant: 'shadow-monster',
   selectedItemVariant: 'key',
+  selectedSpawnVariant: 'player-start',
   clipboard: [],
   history: [],
   historyIndex: -1,
@@ -143,6 +155,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setSelectedDecorationVariant: (variant) => set({ selectedDecorationVariant: variant }),
   setSelectedCharacterVariant: (variant) => set({ selectedCharacterVariant: variant }),
   setSelectedItemVariant: (variant) => set({ selectedItemVariant: variant }),
+  setSelectedSpawnVariant: (variant) => set({ selectedSpawnVariant: variant }),
+  setStageRef: (ref) => set({ stageRef: ref }),
 
   // Element actions
   addElement: (element) => {
@@ -153,6 +167,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
           ? { ...level, elements: [...level.elements, element] }
           : level
       ),
+      // Auto-switch to select tool and select the new element for immediate manipulation
+      activeTool: 'select',
+      selectedElementIds: [element.id],
     }));
   },
 
@@ -165,6 +182,25 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
               ...level,
               elements: level.elements.map(el =>
                 el.id === id ? { ...el, ...updates } as Element : el
+              ),
+            }
+          : level
+      ),
+    }));
+  },
+
+  moveElements: (ids, delta) => {
+    if (ids.length === 0) return;
+    get().saveToHistory();
+    set(state => ({
+      levels: state.levels.map(level =>
+        level.id === state.currentLevelId
+          ? {
+              ...level,
+              elements: level.elements.map(el =>
+                ids.includes(el.id)
+                  ? { ...el, x: el.x + delta.x, y: el.y + delta.y } as Element
+                  : el
               ),
             }
           : level

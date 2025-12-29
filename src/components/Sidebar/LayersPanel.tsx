@@ -13,6 +13,9 @@ const LAYER_LABELS: Record<ElementType, string> = {
   'character': 'Characters',
   'jumpscare': 'Jump Scares',
   'item': 'Items',
+  'spawn': 'Spawn Points',
+  'objective': 'Objectives',
+  'annotation': 'Annotations',
 };
 
 export function LayersPanel() {

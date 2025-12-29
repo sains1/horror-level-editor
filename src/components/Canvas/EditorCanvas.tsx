@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { Stage, Layer } from 'react-konva';
+import { Stage, Layer, Rect } from 'react-konva';
+import Konva from 'konva';
 import { v4 as uuidv4 } from 'uuid';
 import { useEditorStore } from '../../store/editorStore';
 import { GridLayer } from './GridLayer';
@@ -12,9 +13,13 @@ import { DecorationRenderer } from './DecorationRenderer';
 import { CharacterRenderer } from './CharacterRenderer';
 import { JumpscareRenderer } from './JumpscareRenderer';
 import { ItemRenderer } from './ItemRenderer';
+import { SpawnRenderer } from './SpawnRenderer';
+import { ObjectiveRenderer } from './ObjectiveRenderer';
+import { AnnotationRenderer } from './AnnotationRenderer';
 import { DrawingPreview } from './DrawingPreview';
 import { RectanglePreview } from './RectanglePreview';
-import type { Point, Element, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, ElementType } from '../../types/editor';
+import { SelectionOverlay } from './SelectionOverlay';
+import type { Point, Element, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, SpawnElement, ObjectiveElement, AnnotationElement, ElementType } from '../../types/editor';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getWallSegments, snapDoorToWall } from '../../utils/snapUtils';
 
@@ -30,10 +35,14 @@ const ELEMENT_Z_ORDER: Record<ElementType, number> = {
   'item': 60,          // Items above hiding spots
   'jumpscare': 70,     // Jump scares above items
   'character': 80,     // Characters on top
+  'spawn': 85,         // Spawn points near top
+  'objective': 90,     // Objectives above spawns
+  'annotation': 100,   // Annotations on top
 };
 
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [drawingPoints, setDrawingPoints] = useState<Point[]>([]);
   const [mousePosition, setMousePosition] = useState<Point | null>(null);
@@ -41,6 +50,15 @@ export function EditorCanvas() {
   // Rectangle drawing state
   const [rectStart, setRectStart] = useState<Point | null>(null);
   const [rectEnd, setRectEnd] = useState<Point | null>(null);
+
+  // Box selection state
+  const [isBoxSelecting, setIsBoxSelecting] = useState(false);
+  const [boxSelectStart, setBoxSelectStart] = useState<Point | null>(null);
+  const [boxSelectEnd, setBoxSelectEnd] = useState<Point | null>(null);
+  const justFinishedBoxSelect = useRef(false);
+
+  // Multi-select drag tracking - stores original position of dragged element
+  const dragStartPos = useRef<{ elementId: string; x: number; y: number } | null>(null);
 
   const {
     zoom,
@@ -57,13 +75,26 @@ export function EditorCanvas() {
     clearSelection,
     addElement,
     updateElement,
+    moveElements,
     deleteElements,
     selectedDecorationVariant,
     selectedCharacterVariant,
     selectedItemVariant,
+    selectedSpawnVariant,
+    setStageRef,
   } = useEditorStore();
 
   const level = getCurrentLevel();
+
+  // Set the stage ref in the store for PNG export functionality
+  useEffect(() => {
+    if (stageRef.current) {
+      setStageRef(stageRef.current);
+    }
+    return () => {
+      setStageRef(null);
+    };
+  }, [setStageRef]);
 
   // Sort elements by z-order for proper rendering layering
   const sortedElements = useMemo(() => {
@@ -150,6 +181,11 @@ export function EditorCanvas() {
 
     switch (activeTool) {
       case 'select':
+        // Skip clearing if we just finished a box selection (onClick fires after mouseUp)
+        if (justFinishedBoxSelect.current) {
+          justFinishedBoxSelect.current = false;
+          return;
+        }
         clearSelection();
         break;
 
@@ -163,14 +199,16 @@ export function EditorCanvas() {
         const rooms = level?.elements.filter(e => e.type === 'room') as RoomElement[] || [];
         const walls = getWallSegments(rooms);
         const snapResult = snapDoorToWall(pos, walls, 30);
+        const doorId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: doorId,
           type: 'door',
           x: snapResult.position.x,
           y: snapResult.position.y,
           rotation: snapResult.rotation,
           width: 40,
         });
+        selectElements([doorId]);
         break;
       }
 
@@ -179,8 +217,9 @@ export function EditorCanvas() {
         const rooms2 = level?.elements.filter(e => e.type === 'room') as RoomElement[] || [];
         const walls2 = getWallSegments(rooms2);
         const snapResult2 = snapDoorToWall(pos, walls2, 30);
+        const lockedDoorId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: lockedDoorId,
           type: 'locked-door',
           x: snapResult2.position.x,
           y: snapResult2.position.y,
@@ -188,12 +227,14 @@ export function EditorCanvas() {
           width: 40,
           lockColor: '#ff4444',
         });
+        selectElements([lockedDoorId]);
         break;
       }
 
-      case 'stairs':
+      case 'stairs': {
+        const stairsId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: stairsId,
           type: 'stairs',
           x: pos.x,
           y: pos.y,
@@ -202,26 +243,32 @@ export function EditorCanvas() {
           height: 100,
           direction: 'up',
         });
+        selectElements([stairsId]);
         break;
+      }
 
-      case 'hiding-spot':
+      case 'hiding-spot': {
+        const hidingSpotId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: hidingSpotId,
           type: 'hiding-spot',
           x: pos.x,
           y: pos.y,
           rotation: 0,
           radius: 20,
         });
+        selectElements([hidingSpotId]);
         break;
+      }
 
       case 'patrol-route':
         setDrawingPoints(prev => [...prev, pos]);
         break;
 
-      case 'decoration':
+      case 'decoration': {
+        const decorationId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: decorationId,
           type: 'decoration',
           x: pos.x,
           y: pos.y,
@@ -229,11 +276,14 @@ export function EditorCanvas() {
           variant: selectedDecorationVariant,
           scale: 1,
         });
+        selectElements([decorationId]);
         break;
+      }
 
-      case 'character':
+      case 'character': {
+        const characterId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: characterId,
           type: 'character',
           x: pos.x,
           y: pos.y,
@@ -242,11 +292,14 @@ export function EditorCanvas() {
           name: '',
           scale: 1,
         });
+        selectElements([characterId]);
         break;
+      }
 
-      case 'jumpscare':
+      case 'jumpscare': {
+        const jumpscareId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: jumpscareId,
           type: 'jumpscare',
           x: pos.x,
           y: pos.y,
@@ -255,11 +308,14 @@ export function EditorCanvas() {
           radius: 40,
           triggerOnce: true,
         });
+        selectElements([jumpscareId]);
         break;
+      }
 
-      case 'item':
+      case 'item': {
+        const itemId = uuidv4();
         addElement({
-          id: uuidv4(),
+          id: itemId,
           type: 'item',
           x: pos.x,
           y: pos.y,
@@ -269,9 +325,66 @@ export function EditorCanvas() {
           scale: 1,
           color: '#FFD700',
         });
+        selectElements([itemId]);
         break;
+      }
+
+      case 'annotation': {
+        const annotationId = uuidv4();
+        addElement({
+          id: annotationId,
+          type: 'annotation',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          text: 'Note',
+          fontSize: 'medium',
+          color: '#333333',
+          backgroundColor: '#FFEB3B',
+        });
+        selectElements([annotationId]);
+        break;
+      }
+
+      case 'spawn': {
+        const spawnId = uuidv4();
+        addElement({
+          id: spawnId,
+          type: 'spawn',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          variant: selectedSpawnVariant,
+          name: '',
+          direction: 0,
+          respawn: 'once',
+        });
+        selectElements([spawnId]);
+        break;
+      }
+
+      case 'objective': {
+        const objectiveId = uuidv4();
+        // Count existing objectives to auto-increment order
+        const existingObjectives = level?.elements.filter(e => e.type === 'objective') || [];
+        addElement({
+          id: objectiveId,
+          type: 'objective',
+          x: pos.x,
+          y: pos.y,
+          rotation: 0,
+          name: '',
+          description: '',
+          objectiveType: 'primary',
+          order: existingObjectives.length + 1,
+          radius: 40,
+          requiredItem: null,
+        });
+        selectElements([objectiveId]);
+        break;
+      }
     }
-  }, [activeTool, snapToGridPos, getMousePos, clearSelection, addElement, selectedDecorationVariant, selectedCharacterVariant, selectedItemVariant]);
+  }, [activeTool, snapToGridPos, getMousePos, clearSelection, addElement, selectElements, selectedDecorationVariant, selectedCharacterVariant, selectedItemVariant, selectedSpawnVariant, level?.elements]);
 
   // Handle double-click to finish drawing
   const handleDblClick = useCallback(() => {
@@ -342,6 +455,9 @@ export function EditorCanvas() {
         setMousePosition(null);
         setRectStart(null);
         setRectEnd(null);
+        setIsBoxSelecting(false);
+        setBoxSelectStart(null);
+        setBoxSelectEnd(null);
         clearSelection();
       }
 
@@ -371,6 +487,15 @@ export function EditorCanvas() {
       const pos = snapToGridPos(getMousePos(e));
       setRectStart(pos);
       setRectEnd(pos);
+      return;
+    }
+
+    // Box selection - start when clicking on the stage background with select tool
+    if (activeTool === 'select' && e.evt.button === 0 && e.target === e.target.getStage()) {
+      const pos = getMousePos(e);
+      setIsBoxSelecting(true);
+      setBoxSelectStart(pos);
+      setBoxSelectEnd(pos);
     }
   }, [activeTool, snapToGridPos, getMousePos]);
 
@@ -393,12 +518,19 @@ export function EditorCanvas() {
       return;
     }
 
+    // Update box selection while dragging
+    if (isBoxSelecting) {
+      const pos = getMousePos(e);
+      setBoxSelectEnd(pos);
+      return;
+    }
+
     // Update mouse position for polygon/patrol drawing preview
     if ((activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0) {
       const pos = snapToGridPos(getMousePos(e));
       setMousePosition(pos);
     }
-  }, [isPanning, lastPanPos, panOffset, setPanOffset, activeTool, drawingPoints.length, rectStart, snapToGridPos, getMousePos]);
+  }, [isPanning, lastPanPos, panOffset, setPanOffset, activeTool, drawingPoints.length, rectStart, isBoxSelecting, snapToGridPos, getMousePos]);
 
   // Handle right-click to finish drawing
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -411,8 +543,62 @@ export function EditorCanvas() {
     // Allow default context menu otherwise
   }, [activeTool, drawingPoints.length, handleDblClick]);
 
+  // Helper function to get element center
+  const getElementCenter = useCallback((element: Element): Point => {
+    // For rooms and patrol routes, calculate center from points
+    if (element.type === 'room' || element.type === 'patrol-route') {
+      const pointsElement = element as RoomElement | PatrolRouteElement;
+      const points = pointsElement.points;
+      if (points.length === 0) return { x: element.x, y: element.y };
+      const sumX = points.reduce((sum, p) => sum + p.x, 0);
+      const sumY = points.reduce((sum, p) => sum + p.y, 0);
+      return {
+        x: element.x + sumX / points.length,
+        y: element.y + sumY / points.length,
+      };
+    }
+    // For other elements, use their x,y position as center
+    return { x: element.x, y: element.y };
+  }, []);
+
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
+
+    // Finish box selection
+    if (isBoxSelecting && boxSelectStart && boxSelectEnd) {
+      const minX = Math.min(boxSelectStart.x, boxSelectEnd.x);
+      const maxX = Math.max(boxSelectStart.x, boxSelectEnd.x);
+      const minY = Math.min(boxSelectStart.y, boxSelectEnd.y);
+      const maxY = Math.max(boxSelectStart.y, boxSelectEnd.y);
+
+      // Only select elements if the box has some size (prevents accidental clicks)
+      const boxWidth = maxX - minX;
+      const boxHeight = maxY - minY;
+
+      if (boxWidth > 5 || boxHeight > 5) {
+        // Find all elements whose centers fall within the selection box
+        const elementsInBox = (level?.elements || []).filter(element => {
+          const center = getElementCenter(element);
+          return center.x >= minX && center.x <= maxX && center.y >= minY && center.y <= maxY;
+        });
+
+        if (elementsInBox.length > 0) {
+          selectElements(elementsInBox.map(e => e.id));
+        } else {
+          clearSelection();
+        }
+        // Mark that we just finished box selecting so onClick doesn't clear selection
+        justFinishedBoxSelect.current = true;
+      } else {
+        // Small box = click, clear selection
+        clearSelection();
+      }
+
+      setIsBoxSelecting(false);
+      setBoxSelectStart(null);
+      setBoxSelectEnd(null);
+      return;
+    }
 
     // Finish rectangle drawing
     if (activeTool === 'rectangle' && rectStart && rectEnd) {
@@ -448,7 +634,7 @@ export function EditorCanvas() {
       setRectStart(null);
       setRectEnd(null);
     }
-  }, [activeTool, rectStart, rectEnd, gridSize, addElement]);
+  }, [activeTool, rectStart, rectEnd, gridSize, addElement, isBoxSelecting, boxSelectStart, boxSelectEnd, level?.elements, getElementCenter, selectElements, clearSelection]);
 
   // Render element based on type
   const renderElement = (element: Element) => {
@@ -456,9 +642,31 @@ export function EditorCanvas() {
 
     const isSelected = selectedElementIds.includes(element.id);
     const onSelect = () => selectElements([element.id]);
+    const canDrag = activeTool !== 'pan';
+
+    // Track original position when drag starts for multi-select movement
+    const onDragStart = () => {
+      dragStartPos.current = { elementId: element.id, x: element.x, y: element.y };
+    };
+
     const onDragEnd = (x: number, y: number) => {
       const snapped = snapToGridPos({ x, y });
-      updateElement(element.id, { x: snapped.x, y: snapped.y });
+
+      // Check if this element is part of a multi-selection
+      if (isSelected && selectedElementIds.length > 1 && dragStartPos.current?.elementId === element.id) {
+        // Calculate delta from original position
+        const delta = {
+          x: snapped.x - dragStartPos.current.x,
+          y: snapped.y - dragStartPos.current.y,
+        };
+        // Move all selected elements by this delta
+        moveElements(selectedElementIds, delta);
+      } else {
+        // Single element drag
+        updateElement(element.id, { x: snapped.x, y: snapped.y });
+      }
+
+      dragStartPos.current = null;
     };
 
     switch (element.type) {
@@ -469,11 +677,13 @@ export function EditorCanvas() {
             element={element as RoomElement}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onUpdatePoints={(points) => updateElement(element.id, { points })}
             activeTool={activeTool}
             snapToGrid={snapToGrid}
             gridSize={gridSize}
+            draggable={canDrag}
           />
         );
       case 'door':
@@ -487,16 +697,28 @@ export function EditorCanvas() {
             element={element}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={(x, y, rotation) => {
               const snapped = snapToGridPos({ x, y });
-              const updates: Partial<typeof element> = { x: snapped.x, y: snapped.y };
-              if (rotation !== undefined) {
-                updates.rotation = rotation;
+              // Check if this element is part of a multi-selection
+              if (isSelected && selectedElementIds.length > 1 && dragStartPos.current?.elementId === element.id) {
+                const delta = {
+                  x: snapped.x - dragStartPos.current.x,
+                  y: snapped.y - dragStartPos.current.y,
+                };
+                moveElements(selectedElementIds, delta);
+              } else {
+                const updates: Partial<typeof element> = { x: snapped.x, y: snapped.y };
+                if (rotation !== undefined) {
+                  updates.rotation = rotation;
+                }
+                updateElement(element.id, updates);
               }
-              updateElement(element.id, updates);
+              dragStartPos.current = null;
             }}
             walls={doorWalls}
             snapThreshold={30}
+            draggable={canDrag}
           />
         );
       }
@@ -507,7 +729,9 @@ export function EditorCanvas() {
             element={element}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'hiding-spot':
@@ -517,7 +741,9 @@ export function EditorCanvas() {
             element={element}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'patrol-route':
@@ -527,7 +753,9 @@ export function EditorCanvas() {
             element={element as PatrolRouteElement}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'decoration':
@@ -537,7 +765,9 @@ export function EditorCanvas() {
             element={element}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'character':
@@ -547,7 +777,9 @@ export function EditorCanvas() {
             element={element as CharacterElement}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'jumpscare':
@@ -557,7 +789,9 @@ export function EditorCanvas() {
             element={element as JumpscareElement}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       case 'item':
@@ -567,7 +801,45 @@ export function EditorCanvas() {
             element={element as ItemElement}
             isSelected={isSelected}
             onSelect={onSelect}
+            onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            draggable={canDrag}
+          />
+        );
+      case 'annotation':
+        return (
+          <AnnotationRenderer
+            key={element.id}
+            element={element as AnnotationElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            draggable={canDrag}
+          />
+        );
+      case 'spawn':
+        return (
+          <SpawnRenderer
+            key={element.id}
+            element={element as SpawnElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            draggable={canDrag}
+          />
+        );
+      case 'objective':
+        return (
+          <ObjectiveRenderer
+            key={element.id}
+            element={element as ObjectiveElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            draggable={canDrag}
           />
         );
       default:
@@ -583,6 +855,7 @@ export function EditorCanvas() {
       onContextMenu={handleContextMenu}
     >
       <Stage
+        ref={stageRef}
         width={size.width}
         height={size.height}
         scaleX={zoom}
@@ -612,6 +885,20 @@ export function EditorCanvas() {
         <Layer>
           {sortedElements.map(renderElement)}
 
+          {/* Rotation handles for selected elements */}
+          {activeTool === 'select' && selectedElementIds.map(id => {
+            const element = level?.elements.find(e => e.id === id);
+            if (!element) return null;
+            return (
+              <SelectionOverlay
+                key={`rotation-${id}`}
+                element={element}
+                zoom={zoom}
+                onRotate={(rotation) => updateElement(id, { rotation })}
+              />
+            );
+          })}
+
           {/* Polygon/patrol drawing preview */}
           {(activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0 && (
             <DrawingPreview
@@ -627,6 +914,20 @@ export function EditorCanvas() {
               start={rectStart}
               end={rectEnd}
               gridSize={gridSize}
+            />
+          )}
+
+          {/* Box selection rectangle */}
+          {isBoxSelecting && boxSelectStart && boxSelectEnd && (
+            <Rect
+              x={Math.min(boxSelectStart.x, boxSelectEnd.x)}
+              y={Math.min(boxSelectStart.y, boxSelectEnd.y)}
+              width={Math.abs(boxSelectEnd.x - boxSelectStart.x)}
+              height={Math.abs(boxSelectEnd.y - boxSelectStart.y)}
+              fill="rgba(59, 130, 246, 0.15)"
+              stroke="#3b82f6"
+              strokeWidth={1 / zoom}
+              dash={[6 / zoom, 3 / zoom]}
             />
           )}
         </Layer>

@@ -10,7 +10,8 @@
       "Bash(cat:*)",
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

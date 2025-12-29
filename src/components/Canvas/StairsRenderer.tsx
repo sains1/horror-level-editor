@@ -5,10 +5,12 @@ interface StairsRendererProps {
   element: StairsElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function StairsRenderer({ element, isSelected, onSelect, onDragEnd }: StairsRendererProps) {
+export function StairsRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: StairsRendererProps) {
   const { x, y, width, height, rotation, direction } = element;
   const stepCount = 8;
   const stepHeight = height / stepCount;
@@ -31,9 +33,10 @@ export function StairsRenderer({ element, isSelected, onSelect, onDragEnd }: Sta
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Stair outline */}

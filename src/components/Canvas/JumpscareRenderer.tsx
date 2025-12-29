@@ -5,10 +5,12 @@ interface JumpscareRendererProps {
   element: JumpscareElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function JumpscareRenderer({ element, isSelected, onSelect, onDragEnd }: JumpscareRendererProps) {
+export function JumpscareRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: JumpscareRendererProps) {
   const { x, y, name, radius, triggerOnce, rotation } = element;
 
   // Create zigzag/lightning bolt pattern for trigger area
@@ -31,9 +33,10 @@ export function JumpscareRenderer({ element, isSelected, onSelect, onDragEnd }: 
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Outer trigger zone */}

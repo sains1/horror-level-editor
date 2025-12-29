@@ -5,10 +5,12 @@ interface HidingSpotRendererProps {
   element: HidingSpotElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
+  draggable?: boolean;
 }
 
-export function HidingSpotRenderer({ element, isSelected, onSelect, onDragEnd }: HidingSpotRendererProps) {
+export function HidingSpotRenderer({ element, isSelected, onSelect, onDragStart, onDragEnd, draggable = true }: HidingSpotRendererProps) {
   const { x, y, radius, rotation } = element;
 
   return (
@@ -16,9 +18,10 @@ export function HidingSpotRenderer({ element, isSelected, onSelect, onDragEnd }:
       x={x}
       y={y}
       rotation={rotation}
-      draggable
+      draggable={draggable}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Hiding spot circle */}

@@ -6,25 +6,40 @@ interface RoomRendererProps {
   element: RoomElement;
   isSelected: boolean;
   onSelect: () => void;
+  onDragStart?: () => void;
   onDragEnd: (x: number, y: number) => void;
   onUpdatePoints?: (points: Point[]) => void;
   activeTool?: Tool;
   snapToGrid?: boolean;
   gridSize?: number;
+  draggable?: boolean;
+}
+
+// Calculate relative luminance and return appropriate text color
+function getContrastTextColor(hexColor: string): string {
+  const hex = hexColor.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16) / 255;
+  const g = parseInt(hex.substr(2, 2), 16) / 255;
+  const b = parseInt(hex.substr(4, 2), 16) / 255;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 0.5 ? '#1a1a1a' : '#ffffff';
 }
 
 export function RoomRenderer({
   element,
   isSelected,
   onSelect,
+  onDragStart,
   onDragEnd,
   onUpdatePoints,
   activeTool = 'select',
   snapToGrid = true,
-  gridSize = 20
+  gridSize = 20,
+  draggable = true
 }: RoomRendererProps) {
   const { x, y, points, name, fillColor, wallThickness, rotation, lightLevel = 100 } = element;
   const [isDraggingHandle, setIsDraggingHandle] = useState(false);
+  const textColor = getContrastTextColor(fillColor);
 
   // Convert points to flat array for Konva Line
   const flatPoints = points.flatMap(p => [p.x, p.y]);
@@ -109,9 +124,10 @@ export function RoomRenderer({
       x={x}
       y={y}
       rotation={rotation}
-      draggable={!isDraggingHandle}
+      draggable={draggable && !isDraggingHandle}
       onClick={onSelect}
       onTap={onSelect}
+      onDragStart={onDragStart}
       onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
     >
       {/* Room fill */}
@@ -156,7 +172,7 @@ export function RoomRenderer({
         y={centerY}
         text={name}
         fontSize={14}
-        fill="#333"
+        fill={textColor}
         align="center"
         verticalAlign="middle"
         offsetX={name.length * 3.5}
