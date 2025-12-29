@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { MainToolbar } from './components/Toolbar/MainToolbar';
 import { FooterBar } from './components/Toolbar/FooterBar';
 import { ElementPalette } from './components/Sidebar/ElementPalette';
+import { PropertiesPanel } from './components/Sidebar/PropertiesPanel';
 import { EditorCanvas } from './components/Canvas/EditorCanvas';
 import { useEditorStore } from './store/editorStore';
 
 function App() {
-  const { loadFromLocalStorage, saveToLocalStorage, undo, redo } = useEditorStore();
+  const { loadFromLocalStorage, saveToLocalStorage, undo, redo, copyElements, pasteElements } = useEditorStore();
 
   // Load saved data on mount
   useEffect(() => {
@@ -39,11 +40,27 @@ function App() {
         e.preventDefault();
         saveToLocalStorage();
       }
+      // Ctrl/Cmd + C for copy
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        e.preventDefault();
+        copyElements();
+      }
+      // Ctrl/Cmd + V for paste
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        pasteElements();
+      }
+      // Ctrl/Cmd + D for duplicate
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        copyElements();
+        pasteElements();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, saveToLocalStorage]);
+  }, [undo, redo, saveToLocalStorage, copyElements, pasteElements]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-900">
@@ -61,6 +78,11 @@ function App() {
 
         {/* Canvas area */}
         <EditorCanvas />
+
+        {/* Right sidebar - Properties */}
+        <aside className="w-64 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden">
+          <PropertiesPanel />
+        </aside>
       </div>
 
       {/* Footer */}

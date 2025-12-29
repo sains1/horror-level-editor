@@ -2,6 +2,17 @@
 
 A web-based floor plan editor for designing game levels. Create rooms, doors, patrol routes, and decorations with a visual canvas interface.
 
+## CRITICAL Windows Environment Requirements
+
+CRITICAL - File Operations: Always use complete absolute Windows paths with drive letters and backslashes for ALL file operations (Read, Edit, Write, etc.) to avoid file modification errors.
+
+Examples:
+
+✅ C:\Users\user\Projects\modules\networking\main.tf
+❌ C:/Users/user/Projects/modules/networking/main.tf (forward slashes cause errors)
+❌ modules/networking/main.tf (relative paths cause errors)
+This is a known workaround for a file modification detection bug in Claude Code on Windows.
+
 ## Tech Stack
 
 - **Framework**: React 19 + TypeScript + Vite

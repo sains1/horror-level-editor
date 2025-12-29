@@ -13,6 +13,7 @@ import { DrawingPreview } from './DrawingPreview';
 import { RectanglePreview } from './RectanglePreview';
 import type { Point, Element, RoomElement, PatrolRouteElement } from '../../types/editor';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { getWallSegments, snapDoorToWall } from '../../utils/snapUtils';
 
 export function EditorCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,28 +128,38 @@ export function EditorCanvas() {
         setDrawingPoints(prev => [...prev, pos]);
         break;
 
-      case 'door':
+      case 'door': {
+        // Get walls and snap door to nearest wall
+        const rooms = level?.elements.filter(e => e.type === 'room') as RoomElement[] || [];
+        const walls = getWallSegments(rooms);
+        const snapResult = snapDoorToWall(pos, walls, 30);
         addElement({
           id: uuidv4(),
           type: 'door',
-          x: pos.x,
-          y: pos.y,
-          rotation: 0,
+          x: snapResult.position.x,
+          y: snapResult.position.y,
+          rotation: snapResult.rotation,
           width: 40,
         });
         break;
+      }
 
-      case 'locked-door':
+      case 'locked-door': {
+        // Get walls and snap door to nearest wall
+        const rooms2 = level?.elements.filter(e => e.type === 'room') as RoomElement[] || [];
+        const walls2 = getWallSegments(rooms2);
+        const snapResult2 = snapDoorToWall(pos, walls2, 30);
         addElement({
           id: uuidv4(),
           type: 'locked-door',
-          x: pos.x,
-          y: pos.y,
-          rotation: 0,
+          x: snapResult2.position.x,
+          y: snapResult2.position.y,
+          rotation: snapResult2.rotation,
           width: 40,
           lockColor: '#ff4444',
         });
         break;
+      }
 
       case 'stairs':
         addElement({
@@ -380,19 +391,36 @@ export function EditorCanvas() {
             isSelected={isSelected}
             onSelect={onSelect}
             onDragEnd={onDragEnd}
+            onUpdatePoints={(points) => updateElement(element.id, { points })}
+            activeTool={activeTool}
+            snapToGrid={snapToGrid}
+            gridSize={gridSize}
           />
         );
       case 'door':
-      case 'locked-door':
+      case 'locked-door': {
+        // Get walls for snapping during drag
+        const doorRooms = level?.elements.filter(e => e.type === 'room') as RoomElement[] || [];
+        const doorWalls = getWallSegments(doorRooms);
         return (
           <DoorRenderer
             key={element.id}
             element={element}
             isSelected={isSelected}
             onSelect={onSelect}
-            onDragEnd={onDragEnd}
+            onDragEnd={(x, y, rotation) => {
+              const snapped = snapToGridPos({ x, y });
+              const updates: Partial<typeof element> = { x: snapped.x, y: snapped.y };
+              if (rotation !== undefined) {
+                updates.rotation = rotation;
+              }
+              updateElement(element.id, updates);
+            }}
+            walls={doorWalls}
+            snapThreshold={30}
           />
         );
+      }
       case 'stairs':
         return (
           <StairsRenderer

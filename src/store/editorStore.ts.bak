@@ -14,9 +14,6 @@ interface EditorStore {
   snapToGrid: boolean;
   visibleLayers: Record<ElementType, boolean>;
 
-  // Clipboard for copy/paste
-  clipboard: Element[];
-
   // History for undo/redo
   history: Level[][];
   historyIndex: number;
@@ -39,10 +36,6 @@ interface EditorStore {
   deleteElements: (ids: string[]) => void;
   selectElements: (ids: string[]) => void;
   clearSelection: () => void;
-
-  // Clipboard actions
-  copyElements: () => void;
-  pasteElements: (offset?: Point) => void;
 
   // Level actions
   addLevel: (name: string, copyFromId?: string) => void;
@@ -92,7 +85,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   gridSize: 20,
   snapToGrid: true,
   visibleLayers: { ...DEFAULT_VISIBLE_LAYERS },
-  clipboard: [],
   history: [],
   historyIndex: -1,
 
@@ -169,46 +161,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   selectElements: (ids) => set({ selectedElementIds: ids }),
 
   clearSelection: () => set({ selectedElementIds: [] }),
-  // Clipboard actions
-  copyElements: () => {
-    const selectedElements = get().getSelectedElements();
-    if (selectedElements.length === 0) return;
-
-    // Deep clone to avoid reference issues
-    const clonedElements = JSON.parse(JSON.stringify(selectedElements));
-    set({ clipboard: clonedElements });
-  },
-
-  pasteElements: (offset = { x: 20, y: 20 }) => {
-    const { clipboard } = get();
-    if (clipboard.length === 0) return;
-
-    get().saveToHistory();
-
-    const newIds: string[] = [];
-    const newElements: Element[] = [];
-
-    for (const element of clipboard) {
-      const newElement = {
-        ...element,
-        id: uuidv4(),
-        x: element.x + offset.x,
-        y: element.y + offset.y,
-      } as Element;
-
-      newIds.push(newElement.id);
-      newElements.push(newElement);
-    }
-
-    set(state => ({
-      levels: state.levels.map(level =>
-        level.id === state.currentLevelId
-          ? { ...level, elements: [...level.elements, ...newElements] }
-          : level
-      ),
-      selectedElementIds: newIds,
-    }));
-  },
 
   // Level actions
   addLevel: (name, copyFromId) => {

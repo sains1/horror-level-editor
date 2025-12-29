@@ -1,14 +1,25 @@
 import { Group, Rect, Arc, Line } from 'react-konva';
 import type { DoorElement, LockedDoorElement } from '../../types/editor';
+import type { WallSegment } from '../../utils/snapUtils';
+import { snapDoorToWall } from '../../utils/snapUtils';
 
 interface DoorRendererProps {
   element: DoorElement | LockedDoorElement;
   isSelected: boolean;
   onSelect: () => void;
-  onDragEnd: (x: number, y: number) => void;
+  onDragEnd: (x: number, y: number, rotation?: number) => void;
+  walls?: WallSegment[];
+  snapThreshold?: number;
 }
 
-export function DoorRenderer({ element, isSelected, onSelect, onDragEnd }: DoorRendererProps) {
+export function DoorRenderer({
+  element,
+  isSelected,
+  onSelect,
+  onDragEnd,
+  walls = [],
+  snapThreshold = 30
+}: DoorRendererProps) {
   const { x, y, width, rotation } = element;
   const isLocked = element.type === 'locked-door';
   const lockColor = isLocked ? (element as LockedDoorElement).lockColor : undefined;
@@ -21,7 +32,15 @@ export function DoorRenderer({ element, isSelected, onSelect, onDragEnd }: DoorR
       draggable
       onClick={onSelect}
       onTap={onSelect}
-      onDragEnd={(e) => onDragEnd(e.target.x(), e.target.y())}
+      onDragEnd={(e) => {
+        const pos = { x: e.target.x(), y: e.target.y() };
+        if (walls.length > 0) {
+          const snapResult = snapDoorToWall(pos, walls, snapThreshold);
+          onDragEnd(snapResult.position.x, snapResult.position.y, snapResult.snapped ? snapResult.rotation : undefined);
+        } else {
+          onDragEnd(pos.x, pos.y);
+        }
+      }}
     >
       {/* Door opening (gap in wall) */}
       <Rect
