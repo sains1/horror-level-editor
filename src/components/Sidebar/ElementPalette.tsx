@@ -79,23 +79,33 @@ interface ToolButtonProps {
   tool: Tool;
   label: string;
   icon: React.ComponentType<{ size?: number }>;
+  /** Set to false to disable drag (e.g., for select/pan tools) */
+  draggable?: boolean;
 }
 
-function ToolButton({ tool, label, icon: Icon }: ToolButtonProps) {
+function ToolButton({ tool, label, icon: Icon, draggable = true }: ToolButtonProps) {
   const { activeTool, setActiveTool } = useEditorStore();
   const isActive = activeTool === tool;
+
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/level-editor-tool', JSON.stringify({ tool }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
 
   return (
     <button
       onClick={() => setActiveTool(tool)}
+      draggable={draggable}
+      onDragStart={draggable ? handleDragStart : undefined}
       className={`
         flex items-center gap-2 w-full px-3 py-2 rounded text-sm
         transition-colors duration-150
         ${isActive
           ? 'bg-blue-600 text-white'
           : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
+        ${draggable ? 'cursor-grab active:cursor-grabbing' : ''}
       `}
-      title={label}
+      title={draggable ? `${label} (click to select, or drag to canvas)` : label}
     >
       <Icon size={18} />
       <span>{label}</span>
@@ -128,17 +138,24 @@ function VariantButton<T extends string>({
     setActiveTool(tool);
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('application/level-editor-tool', JSON.stringify({ tool, variant }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <button
       onClick={handleClick}
+      draggable
+      onDragStart={handleDragStart}
       className={`
         flex items-center gap-2 w-full px-3 py-2 rounded text-sm
-        transition-colors duration-150
+        transition-colors duration-150 cursor-grab active:cursor-grabbing
         ${isActive
           ? 'bg-blue-600 text-white'
           : 'text-gray-300 hover:bg-gray-700 hover:text-white'}
       `}
-      title={label}
+      title={`${label} (click to select, or drag to canvas)`}
     >
       <Icon size={18} />
       <span>{label}</span>
@@ -201,8 +218,8 @@ export function ElementPalette() {
           Rooms
         </h2>
         <div className="flex flex-col gap-1">
-          <ToolButton tool="rectangle" label="Rectangle" icon={RectangleHorizontal} />
-          <ToolButton tool="room" label="Polygon" icon={Hexagon} />
+          <ToolButton tool="rectangle" label="Rectangle" icon={RectangleHorizontal} draggable={false} />
+          <ToolButton tool="room" label="Polygon" icon={Hexagon} draggable={false} />
         </div>
       </div>
 
@@ -215,7 +232,7 @@ export function ElementPalette() {
           <ToolButton tool="locked-door" label="Locked Door" icon={Lock} />
           <ToolButton tool="stairs" label="Stairs" icon={ArrowUpFromLine} />
           <ToolButton tool="hiding-spot" label="Hiding Spot" icon={Eye} />
-          <ToolButton tool="patrol-route" label="Patrol Route" icon={Route} />
+          <ToolButton tool="patrol-route" label="Patrol Route" icon={Route} draggable={false} />
           <ToolButton tool="jumpscare" label="Jump Scare" icon={Zap} />
         </div>
       </div>

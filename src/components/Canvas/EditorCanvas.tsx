@@ -19,7 +19,7 @@ import { AnnotationRenderer } from './AnnotationRenderer';
 import { DrawingPreview } from './DrawingPreview';
 import { RectanglePreview } from './RectanglePreview';
 import { SelectionOverlay } from './SelectionOverlay';
-import type { Point, Element, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, SpawnElement, ObjectiveElement, AnnotationElement, ElementType } from '../../types/editor';
+import type { Point, Element, Tool, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, SpawnElement, ObjectiveElement, AnnotationElement, ElementType, DecorationVariant, CharacterVariant, ItemVariant, SpawnVariant } from '../../types/editor';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getWallSegments, snapDoorToWall } from '../../utils/snapUtils';
 
@@ -476,7 +476,9 @@ export function EditorCanvas() {
   const [lastPanPos, setLastPanPos] = useState<Point>({ x: 0, y: 0 });
 
   const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (activeTool === 'pan' || e.evt.button === 1) { // Middle mouse button
+    // Pan with pan tool, middle mouse button, or right mouse button (when not drawing)
+    const isDrawing = (activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0;
+    if (activeTool === 'pan' || e.evt.button === 1 || (e.evt.button === 2 && !isDrawing)) {
       setIsPanning(true);
       setLastPanPos({ x: e.evt.clientX, y: e.evt.clientY });
       return;
@@ -497,7 +499,7 @@ export function EditorCanvas() {
       setBoxSelectStart(pos);
       setBoxSelectEnd(pos);
     }
-  }, [activeTool, snapToGridPos, getMousePos]);
+  }, [activeTool, snapToGridPos, getMousePos, drawingPoints.length]);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (isPanning) {
@@ -532,16 +534,238 @@ export function EditorCanvas() {
     }
   }, [isPanning, lastPanPos, panOffset, setPanOffset, activeTool, drawingPoints.length, rectStart, isBoxSelecting, snapToGridPos, getMousePos]);
 
-  // Handle right-click to finish drawing
+  // Handle right-click to finish drawing or prevent context menu for panning
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    // Prevent context menu when drawing
+    // Prevent context menu when drawing - finish drawing instead
     if ((activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0) {
       e.preventDefault();
       handleDblClick(); // Finish drawing
       return;
     }
-    // Allow default context menu otherwise
+    // Prevent context menu otherwise to allow right-click panning
+    e.preventDefault();
   }, [activeTool, drawingPoints.length, handleDblClick]);
+
+  // Handle drag over for drop zone
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/level-editor-tool')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }, []);
+
+  // Handle drop from sidebar
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+
+    const data = e.dataTransfer.getData('application/level-editor-tool');
+    if (!data) return;
+
+    try {
+      const { tool, variant } = JSON.parse(data) as { tool: Tool; variant?: string };
+
+      // Get drop position relative to the container
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const rawPos = {
+        x: (e.clientX - rect.left - panOffset.x) / zoom,
+        y: (e.clientY - rect.top - panOffset.y) / zoom,
+      };
+
+      // Snap to grid
+      const pos = snapToGridPos(rawPos);
+
+      // Create element based on tool type
+      switch (tool) {
+        case 'door': {
+          const rooms = level?.elements.filter(el => el.type === 'room') as RoomElement[] || [];
+          const walls = getWallSegments(rooms);
+          const snapResult = snapDoorToWall(pos, walls, 30);
+          const doorId = uuidv4();
+          addElement({
+            id: doorId,
+            type: 'door',
+            x: snapResult.position.x,
+            y: snapResult.position.y,
+            rotation: snapResult.rotation,
+            width: 40,
+          });
+          selectElements([doorId]);
+          break;
+        }
+
+        case 'locked-door': {
+          const rooms2 = level?.elements.filter(el => el.type === 'room') as RoomElement[] || [];
+          const walls2 = getWallSegments(rooms2);
+          const snapResult2 = snapDoorToWall(pos, walls2, 30);
+          const lockedDoorId = uuidv4();
+          addElement({
+            id: lockedDoorId,
+            type: 'locked-door',
+            x: snapResult2.position.x,
+            y: snapResult2.position.y,
+            rotation: snapResult2.rotation,
+            width: 40,
+            lockColor: '#ff4444',
+          });
+          selectElements([lockedDoorId]);
+          break;
+        }
+
+        case 'stairs': {
+          const stairsId = uuidv4();
+          addElement({
+            id: stairsId,
+            type: 'stairs',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            width: 60,
+            height: 100,
+            direction: 'up',
+          });
+          selectElements([stairsId]);
+          break;
+        }
+
+        case 'hiding-spot': {
+          const hidingSpotId = uuidv4();
+          addElement({
+            id: hidingSpotId,
+            type: 'hiding-spot',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            radius: 20,
+          });
+          selectElements([hidingSpotId]);
+          break;
+        }
+
+        case 'decoration': {
+          const decorationId = uuidv4();
+          addElement({
+            id: decorationId,
+            type: 'decoration',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            variant: (variant as DecorationVariant) || 'tree',
+            scale: 1,
+          });
+          selectElements([decorationId]);
+          break;
+        }
+
+        case 'character': {
+          const characterId = uuidv4();
+          addElement({
+            id: characterId,
+            type: 'character',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            variant: (variant as CharacterVariant) || 'shadow-monster',
+            name: '',
+            scale: 1,
+          });
+          selectElements([characterId]);
+          break;
+        }
+
+        case 'jumpscare': {
+          const jumpscareId = uuidv4();
+          addElement({
+            id: jumpscareId,
+            type: 'jumpscare',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            name: '',
+            radius: 40,
+            triggerOnce: true,
+          });
+          selectElements([jumpscareId]);
+          break;
+        }
+
+        case 'item': {
+          const itemId = uuidv4();
+          addElement({
+            id: itemId,
+            type: 'item',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            variant: (variant as ItemVariant) || 'key',
+            name: '',
+            scale: 1,
+            color: '#FFD700',
+          });
+          selectElements([itemId]);
+          break;
+        }
+
+        case 'spawn': {
+          const spawnId = uuidv4();
+          addElement({
+            id: spawnId,
+            type: 'spawn',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            variant: (variant as SpawnVariant) || 'player-start',
+            name: '',
+            direction: 0,
+            respawn: 'once',
+          });
+          selectElements([spawnId]);
+          break;
+        }
+
+        case 'objective': {
+          const objectiveId = uuidv4();
+          const existingObjectives = level?.elements.filter(el => el.type === 'objective') || [];
+          addElement({
+            id: objectiveId,
+            type: 'objective',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            name: '',
+            description: '',
+            objectiveType: 'primary',
+            order: existingObjectives.length + 1,
+            radius: 40,
+            requiredItem: null,
+          });
+          selectElements([objectiveId]);
+          break;
+        }
+
+        case 'annotation': {
+          const annotationId = uuidv4();
+          addElement({
+            id: annotationId,
+            type: 'annotation',
+            x: pos.x,
+            y: pos.y,
+            rotation: 0,
+            text: 'Note',
+            fontSize: 'medium',
+            color: '#333333',
+            backgroundColor: '#FFEB3B',
+          });
+          selectElements([annotationId]);
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse drop data:', err);
+    }
+  }, [panOffset, zoom, snapToGridPos, level?.elements, addElement, selectElements]);
 
   // Helper function to get element center
   const getElementCenter = useCallback((element: Element): Point => {
@@ -851,8 +1075,10 @@ export function EditorCanvas() {
     <div
       ref={containerRef}
       className="flex-1 bg-gray-900 overflow-hidden"
-      style={{ cursor: activeTool === 'pan' || isPanning ? 'grab' : activeTool === 'rectangle' ? 'crosshair' : 'crosshair' }}
+      style={{ cursor: isPanning ? 'grabbing' : activeTool === 'pan' ? 'grab' : 'crosshair' }}
       onContextMenu={handleContextMenu}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <Stage
         ref={stageRef}
