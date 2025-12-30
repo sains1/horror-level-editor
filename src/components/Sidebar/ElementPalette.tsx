@@ -6,6 +6,8 @@ import {
   ArrowUpFromLine,
   Eye,
   Route,
+  Fan,
+  Waypoints,
   TreeDeciduous,
   MousePointer2,
   Hand,
@@ -233,6 +235,8 @@ export function ElementPalette() {
           <ToolButton tool="stairs" label="Stairs" icon={ArrowUpFromLine} />
           <ToolButton tool="hiding-spot" label="Hiding Spot" icon={Eye} />
           <ToolButton tool="patrol-route" label="Patrol Route" icon={Route} draggable={false} />
+          <ToolButton tool="vent" label="Vent" icon={Fan} draggable={false} />
+          <ToolButton tool="passageway" label="Passageway" icon={Waypoints} draggable={false} />
           <ToolButton tool="jumpscare" label="Jump Scare" icon={Zap} />
         </div>
       </div>

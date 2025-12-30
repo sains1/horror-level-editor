@@ -5,6 +5,8 @@ export type ElementType =
   | 'stairs'
   | 'hiding-spot'
   | 'patrol-route'
+  | 'vent'
+  | 'passageway'
   | 'decoration'
   | 'character'
   | 'jumpscare'
@@ -23,7 +25,7 @@ export type SpawnVariant = 'player-start' | 'enemy-spawn' | 'npc-spawn';
 
 export type ObjectiveType = 'primary' | 'secondary' | 'optional';
 
-export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'decoration' | 'character' | 'jumpscare' | 'item' | 'spawn' | 'objective' | 'annotation' | 'pan';
+export type Tool = 'select' | 'room' | 'rectangle' | 'door' | 'locked-door' | 'stairs' | 'hiding-spot' | 'patrol-route' | 'vent' | 'passageway' | 'decoration' | 'character' | 'jumpscare' | 'item' | 'spawn' | 'objective' | 'annotation' | 'pan';
 
 export interface Point {
   x: number;
@@ -75,6 +77,18 @@ export interface PatrolRouteElement extends BaseElement {
   points: Point[];
   color: string;
   loop: boolean;
+}
+
+export interface VentElement extends BaseElement {
+  type: 'vent';
+  points: Point[];
+  color: string;
+}
+
+export interface PassagewayElement extends BaseElement {
+  type: 'passageway';
+  points: Point[];
+  color: string;
 }
 
 export interface DecorationElement extends BaseElement {
@@ -138,6 +152,8 @@ export type Element =
   | StairsElement
   | HidingSpotElement
   | PatrolRouteElement
+  | VentElement
+  | PassagewayElement
   | DecorationElement
   | CharacterElement
   | JumpscareElement

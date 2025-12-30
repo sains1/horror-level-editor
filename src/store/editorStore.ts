@@ -84,6 +84,8 @@ const DEFAULT_VISIBLE_LAYERS: Record<ElementType, boolean> = {
   'stairs': true,
   'hiding-spot': true,
   'patrol-route': true,
+  'vent': true,
+  'passageway': true,
   'decoration': true,
   'character': true,
   'jumpscare': true,

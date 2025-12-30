@@ -9,6 +9,8 @@ const LAYER_LABELS: Record<ElementType, string> = {
   'stairs': 'Stairs',
   'hiding-spot': 'Hiding Spots',
   'patrol-route': 'Patrol Routes',
+  'vent': 'Vents',
+  'passageway': 'Passageways',
   'decoration': 'Decorations',
   'character': 'Characters',
   'jumpscare': 'Jump Scares',

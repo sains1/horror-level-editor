@@ -11,7 +11,16 @@ export function DrawingPreview({ points, tool, mousePosition }: DrawingPreviewPr
   if (points.length === 0) return null;
 
   const isRoom = tool === 'room';
-  const color = isRoom ? '#000' : '#ff6600';
+  const getToolColor = () => {
+    switch (tool) {
+      case 'room': return '#000';
+      case 'patrol-route': return '#ff6600';
+      case 'vent': return '#888888';
+      case 'passageway': return '#8B4513';
+      default: return '#ff6600';
+    }
+  };
+  const color = getToolColor();
 
   // Create flat points array including mouse position for live preview
   const allPoints = [...points];

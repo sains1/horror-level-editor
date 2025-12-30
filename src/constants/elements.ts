@@ -77,6 +77,26 @@ export const ELEMENT_DEFINITIONS: ElementDefinition[] = [
       loop: true,
     },
   },
+  {
+    type: 'vent',
+    tool: 'vent',
+    label: 'Vent',
+    icon: 'Fan',
+    category: 'structure',
+    defaultProps: {
+      color: '#888888',
+    },
+  },
+  {
+    type: 'passageway',
+    tool: 'passageway',
+    label: 'Passageway',
+    icon: 'Waypoints',
+    category: 'structure',
+    defaultProps: {
+      color: '#8B4513',
+    },
+  },
 ];
 
 export const DECORATION_VARIANTS: { variant: DecorationVariant; label: string; icon: string }[] = [

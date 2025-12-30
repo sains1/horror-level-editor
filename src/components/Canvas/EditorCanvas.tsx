@@ -9,6 +9,8 @@ import { DoorRenderer } from './DoorRenderer';
 import { StairsRenderer } from './StairsRenderer';
 import { HidingSpotRenderer } from './HidingSpotRenderer';
 import { PatrolRouteRenderer } from './PatrolRouteRenderer';
+import { VentRenderer } from './VentRenderer';
+import { PassagewayRenderer } from './PassagewayRenderer';
 import { DecorationRenderer } from './DecorationRenderer';
 import { CharacterRenderer } from './CharacterRenderer';
 import { JumpscareRenderer } from './JumpscareRenderer';
@@ -19,7 +21,7 @@ import { AnnotationRenderer } from './AnnotationRenderer';
 import { DrawingPreview } from './DrawingPreview';
 import { RectanglePreview } from './RectanglePreview';
 import { SelectionOverlay } from './SelectionOverlay';
-import type { Point, Element, Tool, RoomElement, PatrolRouteElement, CharacterElement, JumpscareElement, ItemElement, SpawnElement, ObjectiveElement, AnnotationElement, ElementType, DecorationVariant, CharacterVariant, ItemVariant, SpawnVariant } from '../../types/editor';
+import type { Point, Element, Tool, RoomElement, PatrolRouteElement, VentElement, PassagewayElement, CharacterElement, JumpscareElement, ItemElement, SpawnElement, ObjectiveElement, AnnotationElement, ElementType, DecorationVariant, CharacterVariant, ItemVariant, SpawnVariant } from '../../types/editor';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { getWallSegments, snapDoorToWall } from '../../utils/snapUtils';
 
@@ -28,6 +30,8 @@ const ELEMENT_Z_ORDER: Record<ElementType, number> = {
   'room': 0,           // Rooms at the bottom
   'decoration': 10,    // Decorations above rooms
   'patrol-route': 20,  // Routes above decorations
+  'vent': 22,          // Vents above patrol routes
+  'passageway': 24,    // Passageways above vents
   'door': 30,          // Doors above routes
   'locked-door': 30,   // Same level as doors
   'stairs': 40,        // Stairs above doors
@@ -262,6 +266,8 @@ export function EditorCanvas() {
       }
 
       case 'patrol-route':
+      case 'vent':
+      case 'passageway':
         setDrawingPoints(prev => [...prev, pos]);
         break;
 
@@ -417,6 +423,30 @@ export function EditorCanvas() {
       });
       setDrawingPoints([]);
       setMousePosition(null);
+    } else if (activeTool === 'vent' && drawingPoints.length >= 2) {
+      addElement({
+        id: uuidv4(),
+        type: 'vent',
+        x: 0,
+        y: 0,
+        rotation: 0,
+        points: drawingPoints,
+        color: '#888888',
+      });
+      setDrawingPoints([]);
+      setMousePosition(null);
+    } else if (activeTool === 'passageway' && drawingPoints.length >= 2) {
+      addElement({
+        id: uuidv4(),
+        type: 'passageway',
+        x: 0,
+        y: 0,
+        rotation: 0,
+        points: drawingPoints,
+        color: '#8B4513',
+      });
+      setDrawingPoints([]);
+      setMousePosition(null);
     }
   }, [activeTool, drawingPoints, addElement]);
 
@@ -477,7 +507,7 @@ export function EditorCanvas() {
 
   const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
     // Pan with pan tool, middle mouse button, or right mouse button (when not drawing)
-    const isDrawing = (activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0;
+    const isDrawing = (activeTool === 'room' || activeTool === 'patrol-route' || activeTool === 'vent' || activeTool === 'passageway') && drawingPoints.length > 0;
     if (activeTool === 'pan' || e.evt.button === 1 || (e.evt.button === 2 && !isDrawing)) {
       setIsPanning(true);
       setLastPanPos({ x: e.evt.clientX, y: e.evt.clientY });
@@ -527,8 +557,8 @@ export function EditorCanvas() {
       return;
     }
 
-    // Update mouse position for polygon/patrol drawing preview
-    if ((activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0) {
+    // Update mouse position for polygon/patrol/vent/passageway drawing preview
+    if ((activeTool === 'room' || activeTool === 'patrol-route' || activeTool === 'vent' || activeTool === 'passageway') && drawingPoints.length > 0) {
       const pos = snapToGridPos(getMousePos(e));
       setMousePosition(pos);
     }
@@ -537,7 +567,7 @@ export function EditorCanvas() {
   // Handle right-click to finish drawing or prevent context menu for panning
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     // Prevent context menu when drawing - finish drawing instead
-    if ((activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0) {
+    if ((activeTool === 'room' || activeTool === 'patrol-route' || activeTool === 'vent' || activeTool === 'passageway') && drawingPoints.length > 0) {
       e.preventDefault();
       handleDblClick(); // Finish drawing
       return;
@@ -769,9 +799,9 @@ export function EditorCanvas() {
 
   // Helper function to get element center
   const getElementCenter = useCallback((element: Element): Point => {
-    // For rooms and patrol routes, calculate center from points
-    if (element.type === 'room' || element.type === 'patrol-route') {
-      const pointsElement = element as RoomElement | PatrolRouteElement;
+    // For rooms, patrol routes, vents, and passageways, calculate center from points
+    if (element.type === 'room' || element.type === 'patrol-route' || element.type === 'vent' || element.type === 'passageway') {
+      const pointsElement = element as RoomElement | PatrolRouteElement | VentElement | PassagewayElement;
       const points = pointsElement.points;
       if (points.length === 0) return { x: element.x, y: element.y };
       const sumX = points.reduce((sum, p) => sum + p.x, 0);
@@ -982,6 +1012,30 @@ export function EditorCanvas() {
             draggable={canDrag}
           />
         );
+      case 'vent':
+        return (
+          <VentRenderer
+            key={element.id}
+            element={element as VentElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            draggable={canDrag}
+          />
+        );
+      case 'passageway':
+        return (
+          <PassagewayRenderer
+            key={element.id}
+            element={element as PassagewayElement}
+            isSelected={isSelected}
+            onSelect={onSelect}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            draggable={canDrag}
+          />
+        );
       case 'decoration':
         return (
           <DecorationRenderer
@@ -1125,8 +1179,8 @@ export function EditorCanvas() {
             );
           })}
 
-          {/* Polygon/patrol drawing preview */}
-          {(activeTool === 'room' || activeTool === 'patrol-route') && drawingPoints.length > 0 && (
+          {/* Polygon/patrol/vent/passageway drawing preview */}
+          {(activeTool === 'room' || activeTool === 'patrol-route' || activeTool === 'vent' || activeTool === 'passageway') && drawingPoints.length > 0 && (
             <DrawingPreview
               points={drawingPoints}
               tool={activeTool}
@@ -1160,7 +1214,7 @@ export function EditorCanvas() {
       </Stage>
 
       {/* Drawing instructions */}
-      {(activeTool === 'room' || activeTool === 'patrol-route') && (
+      {(activeTool === 'room' || activeTool === 'patrol-route' || activeTool === 'vent' || activeTool === 'passageway') && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">
           {drawingPoints.length === 0
             ? `Click to place ${activeTool === 'room' ? 'corners' : 'waypoints'}`
